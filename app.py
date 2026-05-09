@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import io
 import os
-import time
 from pathlib import Path
 
 import matplotlib
@@ -160,7 +159,14 @@ with tabs[0]:
             ss.trainer.stop()
 
         # ---------------- live status / charts ----------------
-        if ss.trainer:
+        # Wrapped in @st.fragment(run_every=...) so only this panel re-renders
+        # on a timer; the rest of the page (tabs, sidebar, other panels) stays
+        # fully responsive while training is running.
+        @st.fragment(run_every=1.5 if (ss.trainer and ss.trainer.is_alive()) else None)
+        def live_status_panel():
+            if not ss.trainer:
+                st.info("Configure hyperparameters in the sidebar, then press **Start**.")
+                return
             snap = ss.trainer.snapshot()
             st.markdown(f"**Status:** `{snap['status']}`  ·  device: `{ss.trainer.device}`  "
                         f"·  best_val_acc: `{snap['best_val_acc']:.4f}` (epoch {snap['best_epoch']})")
@@ -189,11 +195,7 @@ with tabs[0]:
             if snap["best_checkpoint"]:
                 st.caption(f":star: best: `{snap['best_checkpoint']}`")
 
-            if ss.trainer.is_alive():
-                time.sleep(1.5)
-                st.rerun()
-        else:
-            st.info("Configure hyperparameters in the sidebar, then press **Start**.")
+        live_status_panel()
 
 
 # =========================================================== Evaluate tab
